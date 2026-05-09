@@ -36,29 +36,24 @@ export function RightSidebar() {
         const token = await getAccessToken()
         if (!token || cancelled) return
 
+        const headers = { Authorization: `Bearer ${token}` }
+
+        // Search for the artist
         const searchRes = await fetch(
           `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers }
         )
         const searchData = await searchRes.json()
         const hit = searchData.artists?.items?.[0]
         if (!hit || cancelled) return
 
-        // Fetch full artist profile (search returns simplified objects without followers)
-        const [artistRes, followRes] = await Promise.all([
-          fetch(`https://api.spotify.com/v1/artists/${hit.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`https://api.spotify.com/v1/me/following/contains?type=artist&ids=${hit.id}`, { headers: { Authorization: `Bearer ${token}` } }),
-        ])
-        const a = artistRes.ok ? await artistRes.json() : hit
-        const followData = followRes.ok ? await followRes.json() : [false]
-
         if (!cancelled) {
           setArtist({
-            name: a.name,
-            followers: a.followers?.total ?? 0,
-            genres: (a.genres ?? []).slice(0, 3),
-            image: a.images?.[0]?.url,
-            isFollowing: Array.isArray(followData) ? followData[0] : false,
+            name: hit.name,
+            followers: hit.followers?.total ?? -1,
+            genres: (hit.genres ?? []).slice(0, 3),
+            image: hit.images?.[0]?.url,
+            isFollowing: false,
           })
         }
       } catch (err) {
@@ -136,9 +131,11 @@ export function RightSidebar() {
                 <div className="p-4 pt-0 -mt-6 relative z-10">
                   <h3 className="font-bold text-white text-base mb-1">{artist.name}</h3>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-[#b3b3b3]">
-                      {fmt(artist.followers)} followers
-                    </span>
+                    {artist.followers >= 0 && (
+                      <span className="text-xs text-[#b3b3b3]">
+                        {fmt(artist.followers)} followers
+                      </span>
+                    )}
                     <button className="px-4 py-1 border border-[#727272] rounded-full text-xs font-bold text-white hover:border-white hover:scale-105 transition-all">
                       {artist.isFollowing ? "Following" : "Follow"}
                     </button>
