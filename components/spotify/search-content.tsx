@@ -165,7 +165,7 @@ export function SearchContent() {
         {showBrowse ? (
           <section>
             <h2 className="text-2xl font-bold text-white mb-5">Browse all</h2>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
               {browseCategories.map((cat) => (
                 <button
                   key={cat.name}
@@ -233,7 +233,7 @@ export function SearchContent() {
             {artists.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-bold text-white mb-4">Artists</h2>
-                <div className="grid grid-cols-6 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                   {artists.map((a) => (
                     <div key={a.id} className="bg-[#181818] p-3 rounded-lg hover:bg-[#282828] transition-colors cursor-pointer">
                       <div className="relative w-full aspect-square rounded-full overflow-hidden mb-3 bg-[#282828]">
@@ -251,7 +251,7 @@ export function SearchContent() {
             {albums.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-bold text-white mb-4">Albums</h2>
-                <div className="grid grid-cols-6 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                   {albums.map((a) => (
                     <div key={a.id} className="bg-[#181818] p-3 rounded-lg hover:bg-[#282828] transition-colors cursor-pointer">
                       <div className="relative w-full aspect-square rounded overflow-hidden mb-3 bg-[#282828]">

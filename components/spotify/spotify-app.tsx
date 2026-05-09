@@ -2,6 +2,7 @@
 
 import { PlayerProvider } from "@/lib/player-context"
 import { getAccessToken } from "@/lib/spotify-auth"
+import { Heart, Home, Library, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { LeftSidebar } from "./left-sidebar"
 import { LikedSongsContent } from "./liked-songs-content"
@@ -48,12 +49,18 @@ export function SpotifyApp() {
     <div className="h-screen flex flex-col bg-black">
       {/* Main Area */}
       <div className="flex-1 flex gap-2 p-2 overflow-hidden relative">
-        <LeftSidebar activeView={activeView} onNavigate={setActiveView} onOpenPlaylist={handleOpenPlaylist} />
+        {/* Left Sidebar - hidden on mobile */}
+        <div className="hidden md:block">
+          <LeftSidebar activeView={activeView} onNavigate={setActiveView} onOpenPlaylist={handleOpenPlaylist} />
+        </div>
         
         {activeView === "home" && (
           <>
             <MainContent onNavigate={setActiveView} />
-            <RightSidebar />
+            {/* Right Sidebar - hidden on mobile and tablet */}
+            <div className="hidden xl:block">
+              <RightSidebar />
+            </div>
           </>
         )}
         
@@ -68,6 +75,26 @@ export function SpotifyApp() {
       
       {/* Player Bar */}
       <PlayerBar />
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden flex items-center justify-around bg-[#121212] border-t border-[#282828] py-2 px-4">
+        <button onClick={() => setActiveView("home")} className={`flex flex-col items-center gap-1 ${activeView === "home" ? "text-white" : "text-[#b3b3b3]"}`}>
+          <Home className="w-6 h-6" />
+          <span className="text-[10px] font-medium">Home</span>
+        </button>
+        <button onClick={() => setActiveView("search")} className={`flex flex-col items-center gap-1 ${activeView === "search" ? "text-white" : "text-[#b3b3b3]"}`}>
+          <Search className="w-6 h-6" />
+          <span className="text-[10px] font-medium">Search</span>
+        </button>
+        <button onClick={() => setActiveView("liked")} className={`flex flex-col items-center gap-1 ${activeView === "liked" ? "text-white" : "text-[#b3b3b3]"}`}>
+          <Heart className="w-6 h-6" />
+          <span className="text-[10px] font-medium">Liked</span>
+        </button>
+        <button onClick={() => handleOpenPlaylist("2zBszhe0nkWy3z5qKmS32I")} className={`flex flex-col items-center gap-1 ${activeView === "playlist" ? "text-white" : "text-[#b3b3b3]"}`}>
+          <Library className="w-6 h-6" />
+          <span className="text-[10px] font-medium">Library</span>
+        </button>
+      </nav>
     </div>
     </PlayerProvider>
   )

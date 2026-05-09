@@ -76,7 +76,31 @@ export function PlayerBar() {
           Connecting to Spotify player…
         </div>
       )}
-    <div className="h-[90px] px-4 flex items-center justify-between">
+    {/* Mobile Player Bar */}
+    <div className="md:hidden flex items-center gap-3 px-3 py-2">
+      <div className="w-10 h-10 rounded flex-shrink-0 overflow-hidden relative">
+        <Image src={display.coverUrl} alt={display.title} fill className="object-cover" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-white truncate">{display.title}</p>
+        <p className="text-[10px] text-[#b3b3b3] truncate">{display.artist}</p>
+      </div>
+      <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center text-white">
+        {isLoading ? (
+          <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+          </svg>
+        ) : isPlaying ? (
+          <Pause className="w-5 h-5 fill-current" />
+        ) : (
+          <Play className="w-5 h-5 fill-current" />
+        )}
+      </button>
+    </div>
+
+    {/* Desktop Player Bar */}
+    <div className="hidden md:flex h-[90px] px-4 items-center justify-between">
       {/* Currently Playing */}
       <div className="flex items-center gap-4 w-[30%] min-w-[180px]">
         <div className="w-14 h-14 rounded flex-shrink-0 overflow-hidden relative">
@@ -162,19 +186,19 @@ export function PlayerBar() {
 
       {/* Volume & Other Controls */}
       <div className="flex items-center gap-3 w-[30%] justify-end">
-        <button className="text-[#b3b3b3] hover:text-white transition-colors">
+        <button className="text-[#b3b3b3] hover:text-white transition-colors hidden lg:block">
           <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
             <path d="M11.196 8 6 5v6l5.196-3z" />
             <path d="M15.002 1.75A1.75 1.75 0 0 0 13.252 0h-10.5a1.75 1.75 0 0 0-1.75 1.75v12.5c0 .966.783 1.75 1.75 1.75h10.5a1.75 1.75 0 0 0 1.75-1.75V1.75zm-1.75-.25a.25.25 0 0 1 .25.25v12.5a.25.25 0 0 1-.25.25h-10.5a.25.25 0 0 1-.25-.25V1.75a.25.25 0 0 1 .25-.25h10.5z" />
           </svg>
         </button>
-        <button className="text-[#b3b3b3] hover:text-white transition-colors">
+        <button className="text-[#b3b3b3] hover:text-white transition-colors hidden lg:block">
           <Mic2 className="w-4 h-4" />
         </button>
-        <button className="text-[#b3b3b3] hover:text-white transition-colors">
+        <button className="text-[#b3b3b3] hover:text-white transition-colors hidden lg:block">
           <ListMusic className="w-4 h-4" />
         </button>
-        <button className="text-[#b3b3b3] hover:text-white transition-colors">
+        <button className="text-[#b3b3b3] hover:text-white transition-colors hidden lg:block">
           <MonitorSpeaker className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2">

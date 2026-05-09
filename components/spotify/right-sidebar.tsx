@@ -41,14 +41,16 @@ export function RightSidebar() {
           { headers: { Authorization: `Bearer ${token}` } }
         )
         const searchData = await searchRes.json()
-        const a = searchData.artists?.items?.[0]
-        if (!a || cancelled) return
+        const hit = searchData.artists?.items?.[0]
+        if (!hit || cancelled) return
 
-        const followRes = await fetch(
-          `https://api.spotify.com/v1/me/following/contains?type=artist&ids=${a.id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        const followData = await followRes.json()
+        // Fetch full artist profile (search returns simplified objects without followers)
+        const [artistRes, followRes] = await Promise.all([
+          fetch(`https://api.spotify.com/v1/artists/${hit.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`https://api.spotify.com/v1/me/following/contains?type=artist&ids=${hit.id}`, { headers: { Authorization: `Bearer ${token}` } }),
+        ])
+        const a = artistRes.ok ? await artistRes.json() : hit
+        const followData = followRes.ok ? await followRes.json() : [false]
 
         if (!cancelled) {
           setArtist({

@@ -131,24 +131,24 @@ export function PlaylistContent({ playlistId, onBack }: Props) {
         </div>
 
         {/* Playlist header */}
-        <div className="flex items-end gap-6 p-6 pt-2">
-          <div className="w-[180px] h-[180px] rounded shadow-2xl flex-shrink-0 overflow-hidden relative bg-[#282828]">
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6 p-4 sm:p-6 pt-2">
+          <div className="w-32 h-32 sm:w-[180px] sm:h-[180px] rounded shadow-2xl flex-shrink-0 overflow-hidden relative bg-[#282828]">
             {meta?.image ? (
               <Image src={meta.image} alt={meta.name ?? ""} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Heart className="w-16 h-16 text-[#535353]" />
+                <Heart className="w-12 h-12 sm:w-16 sm:h-16 text-[#535353]" />
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex flex-col gap-1 min-w-0 text-center sm:text-left">
             <span className="text-white text-xs font-medium uppercase">Playlist</span>
             {loading ? (
               <div className="h-10 w-48 bg-[#282828] rounded animate-pulse mt-1" />
             ) : (
-              <h1 className="text-white text-5xl font-bold tracking-tight truncate">{meta?.name}</h1>
+              <h1 className="text-white text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight truncate">{meta?.name}</h1>
             )}
-            <div className="flex items-center gap-1 mt-3 text-sm">
+            <div className="flex items-center justify-center sm:justify-start gap-1 mt-2 sm:mt-3 text-sm">
               <span className="text-white font-semibold">{meta?.owner}</span>
               {meta?.total !== undefined && (
                 <><span className="text-white/50 mx-1">•</span><span className="text-white/70">{meta.total} songs</span></>
@@ -175,8 +175,8 @@ export function PlaylistContent({ playlistId, onBack }: Props) {
       </div>
 
       {/* Track list */}
-      <div className="flex-1 overflow-y-auto px-6">
-        <div className="grid grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] gap-4 px-4 py-2 text-[#b3b3b3] text-sm border-b border-white/10 sticky top-0 bg-[#121212]">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6">
+        <div className="hidden md:grid grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] gap-4 px-4 py-2 text-[#b3b3b3] text-sm border-b border-white/10 sticky top-0 bg-[#121212]">
           <span>#</span><span>TITLE</span><span>ALBUM</span><span>DATE ADDED</span>
           <span className="flex justify-end"><Clock className="w-4 h-4" /></span>
         </div>
@@ -198,19 +198,21 @@ export function PlaylistContent({ playlistId, onBack }: Props) {
               <div
                 key={t.id}
                 onClick={() => handlePlay(t)}
-                className={`grid grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] gap-4 px-4 py-2 text-sm hover:bg-white/10 rounded group items-center cursor-pointer ${isActive ? "bg-white/5" : ""}`}
+                className={`flex items-center gap-3 md:grid md:grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] md:gap-4 px-3 md:px-4 py-2 text-sm hover:bg-white/10 rounded group cursor-pointer ${isActive ? "bg-white/5" : ""}`}
               >
-                {isActive && isPlaying ? (
-                  <span className="flex items-end gap-px h-4 group-hover:hidden">
-                    <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"60%"}} />
-                    <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"100%",animationDelay:"0.15s"}} />
-                    <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"40%",animationDelay:"0.3s"}} />
-                  </span>
-                ) : (
-                  <span className={`group-hover:hidden ${isActive ? "text-[#1DB954]" : "text-[#b3b3b3]"}`}>{i + 1}</span>
-                )}
-                <Play className="w-4 h-4 text-white hidden group-hover:block fill-white" />
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="hidden md:block">
+                  {isActive && isPlaying ? (
+                    <span className="flex items-end gap-px h-4 group-hover:hidden">
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"60%"}} />
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"100%",animationDelay:"0.15s"}} />
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"40%",animationDelay:"0.3s"}} />
+                    </span>
+                  ) : (
+                    <span className={`group-hover:hidden ${isActive ? "text-[#1DB954]" : "text-[#b3b3b3]"}`}>{i + 1}</span>
+                  )}
+                  <Play className="w-4 h-4 text-white hidden group-hover:block fill-white" />
+                </div>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="relative w-10 h-10 flex-shrink-0 bg-[#282828] rounded">
                     {t.coverUrl && <Image src={t.coverUrl} alt={t.title} fill className="object-cover rounded" />}
                   </div>
@@ -219,10 +221,10 @@ export function PlaylistContent({ playlistId, onBack }: Props) {
                     <p className="text-[#b3b3b3] truncate text-xs">{t.artist}</p>
                   </div>
                 </div>
-                <span className="text-[#b3b3b3] truncate">{t.album}</span>
-                <span className="text-[#b3b3b3] text-xs">{t.addedAt}</span>
+                <span className="text-[#b3b3b3] truncate hidden md:block">{t.album}</span>
+                <span className="text-[#b3b3b3] text-xs hidden md:block">{t.addedAt}</span>
                 <div className="flex items-center justify-end">
-                  <span className="text-[#b3b3b3]">{t.duration}</span>
+                  <span className="text-[#b3b3b3] text-xs">{t.duration}</span>
                 </div>
               </div>
             )
