@@ -1,73 +1,160 @@
 "use client"
 
-import { X } from "lucide-react"
+import { usePlayer } from "@/lib/player-context"
+import { getAccessToken } from "@/lib/spotify-auth"
+import { Music2 } from "lucide-react"
 import Image from "next/image"
+import { useEffect, useState } from "react"
+
+interface ArtistInfo {
+  name: string
+  followers: number
+  genres: string[]
+  image?: string
+  isFollowing?: boolean
+}
+
+function fmt(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return String(n)
+}
 
 export function RightSidebar() {
+  const { currentTrack } = usePlayer()
+  const [artist, setArtist] = useState<ArtistInfo | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const artistName = currentTrack?.artist
+    if (!artistName) return
+
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      try {
+        const token = await getAccessToken()
+        if (!token || cancelled) return
+
+        const searchRes = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        const searchData = await searchRes.json()
+        const a = searchData.artists?.items?.[0]
+        if (!a || cancelled) return
+
+        const followRes = await fetch(
+          `https://api.spotify.com/v1/me/following/contains?type=artist&ids=${a.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        const followData = await followRes.json()
+
+        if (!cancelled) {
+          setArtist({
+            name: a.name,
+            followers: a.followers?.total ?? 0,
+            genres: (a.genres ?? []).slice(0, 3),
+            image: a.images?.[0]?.url,
+            isFollowing: Array.isArray(followData) ? followData[0] : false,
+          })
+        }
+      } catch (err) {
+        console.error("[artist info]", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [currentTrack?.artist])
+
+  if (!currentTrack) {
+    return (
+      <div className="w-[320px] rounded-lg flex flex-col h-full overflow-hidden flex-shrink-0 bg-[#121212] items-center justify-center gap-4">
+        <Music2 className="w-12 h-12 text-[#282828]" />
+        <p className="text-[#b3b3b3] text-sm">Play a song to see artist info</p>
+      </div>
+    )
+  }
+
   return (
     <div className="w-[320px] rounded-lg flex flex-col h-full overflow-hidden flex-shrink-0 relative">
-      {/* Deep maroon/red gradient background matching album art */}
-      <div 
+      <div
         className="absolute inset-0 z-0"
-        style={{
-          background: "linear-gradient(180deg, #4a1c24 0%, #2a1015 30%, #121212 60%)"
-        }}
+        style={{ background: "linear-gradient(180deg, #1a2a1a 0%, #121212 45%)" }}
       />
 
       <div className="relative z-10 h-full flex flex-col">
-        {/* Now Playing Header */}
-        <div className="p-4 flex items-center justify-between">
-          <h2 className="font-bold text-white">Moody Mix</h2>
-          <button className="p-1 hover:bg-white/10 rounded-full text-[#b3b3b3] hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+        {/* Header */}
+        <div className="p-4">
+          <h2 className="font-bold text-white text-sm truncate">Now Playing</h2>
         </div>
 
-        {/* Main Album Art */}
+        {/* Album Art */}
         <div className="px-4">
-          <div className="aspect-square rounded-lg overflow-hidden relative shadow-2xl">
-            <Image 
-              src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop"
-              alt="Moody Mix"
-              fill
-              className="object-cover"
-            />
-            {/* Overlay gradient for depth */}
-            <div 
-              className="absolute inset-0"
-              style={{
-                background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.3) 100%)"
-              }}
-            />
+          <div className="aspect-square rounded-lg overflow-hidden relative shadow-2xl bg-[#282828]">
+            {currentTrack.coverUrl ? (
+              <Image src={currentTrack.coverUrl} alt={currentTrack.title} fill className="object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Music2 className="w-16 h-16 text-[#535353]" />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* About the Artist Section */}
+        {/* Track info */}
+        <div className="px-4 pt-3 pb-1">
+          <p className="font-bold text-white truncate">{currentTrack.title}</p>
+          <p className="text-sm text-[#b3b3b3] truncate">{currentTrack.artist}</p>
+        </div>
+
+        {/* About the Artist */}
         <div className="p-4 flex-1 overflow-y-auto scrollbar-hidden">
           <div className="bg-[#282828] rounded-lg overflow-hidden">
-            {/* Artist Image Section */}
-            <div className="relative h-40 overflow-hidden">
-              <Image 
-                src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=200&fit=crop"
-                alt="Lewis Capaldi"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#282828] to-transparent" />
-              <span className="absolute top-3 left-3 text-xs text-white/80">About the artist</span>
-            </div>
-            <div className="p-4 pt-0 -mt-8 relative z-10">
-              <h3 className="font-bold text-white text-lg mb-1">Lewis Capaldi</h3>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-[#b3b3b3]">33,611,524 monthly listeners</span>
-                <button className="px-4 py-1.5 border border-[#727272] rounded-full text-xs font-bold text-white hover:border-white hover:scale-105 transition-all">
-                  Follow
-                </button>
+            {loading ? (
+              <div className="p-4 space-y-3">
+                <div className="h-36 bg-[#333] rounded animate-pulse" />
+                <div className="h-4 bg-[#333] rounded animate-pulse w-1/2" />
+                <div className="h-3 bg-[#333] rounded animate-pulse w-3/4" />
+                <div className="h-3 bg-[#333] rounded animate-pulse w-2/3" />
               </div>
-              <p className="text-sm text-[#b3b3b3] leading-relaxed">
-                2019 oppened in the midst of capaldi finding himself plauded from seemingly every critic spannning each and every corner of the globe. with a record breaking 6...
-              </p>
-            </div>
+            ) : artist ? (
+              <>
+                <div className="relative h-36 overflow-hidden">
+                  {artist.image ? (
+                    <Image src={artist.image} alt={artist.name} fill className="object-cover object-top" />
+                  ) : (
+                    <div className="w-full h-full bg-[#333]" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#282828] to-transparent" />
+                  <span className="absolute top-3 left-3 text-xs font-bold text-white/80">About the artist</span>
+                </div>
+                <div className="p-4 pt-0 -mt-6 relative z-10">
+                  <h3 className="font-bold text-white text-base mb-1">{artist.name}</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#b3b3b3]">
+                      {fmt(artist.followers)} followers
+                    </span>
+                    <button className="px-4 py-1 border border-[#727272] rounded-full text-xs font-bold text-white hover:border-white hover:scale-105 transition-all">
+                      {artist.isFollowing ? "Following" : "Follow"}
+                    </button>
+                  </div>
+                  {artist.genres.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {artist.genres.map((g) => (
+                        <span key={g} className="px-2 py-0.5 bg-[#333] rounded-full text-xs text-[#b3b3b3] capitalize">
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="p-4 text-sm text-[#b3b3b3]">Artist info unavailable</div>
+            )}
           </div>
         </div>
       </div>

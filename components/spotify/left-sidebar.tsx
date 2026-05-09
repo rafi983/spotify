@@ -1,46 +1,86 @@
 "use client"
 
-import { Home, Search, Library, Plus, Heart, Volume2 } from "lucide-react"
+import { usePlayer } from "@/lib/player-context"
+import { getAccessToken, logout } from "@/lib/spotify-auth"
+import { Heart, Home, Library, LogOut, Plus, Search, Volume2 } from "lucide-react"
 import Image from "next/image"
+import { useEffect, useState } from "react"
 import type { ActiveView } from "./spotify-app"
 
-const playlists = [
-  "Chill Mix",
-  "Insta Hits",
-  "Your Top Songs 2021",
-  "Mellow Songs",
-  "Anime Lofi & Chillhop Music",
-  "BG Afro \"Select\" Vibes",
-  "Afro \"Select\" Vibes",
-  "Happy Hits!",
-  "Deep Focus",
-  "Instrumental Study",
-  "OST Compilations",
-  "Nostalgia for old souled mill...",
-  "Mixed Feelings",
-]
-
-const libraryItems = [
-  { id: 1, name: "Liked Songs", type: "Playlist", count: "234 songs", isLiked: true },
-  { id: 2, name: "Johnny Drille", type: "Artist", image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop" },
-  { id: 3, name: "African Heat", type: "Playlist", subtitle: "Spotify", image: "https://images.unsplash.com/photo-1504898770365-14faca6a7320?w=100&h=100&fit=crop" },
-  { id: 4, name: "Moody Mix", type: "Playlist", subtitle: "Spotify", isPlaying: true, image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop" },
-  { id: 5, name: "Playlist", subtitle: "32dj4djgllbx5kbnm23psvcumm", image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop" },
-  { id: 6, name: "Varsity Bars", type: "Playlist", subtitle: "Spotify", image: "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=100&h=100&fit=crop" },
-  { id: 7, name: "ODUMODUBLVCK", type: "Artist", image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=100&h=100&fit=crop" },
-  { id: 8, name: "Your Top Songs 2023", type: "Playlist", subtitle: "Spotify", image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100&h=100&fit=crop" },
-  { id: 9, name: "2000s HITS THROWBACKS | TOP 100 SO...", type: "Playlist", subtitle: "Filtr US", image: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=100&h=100&fit=crop" },
-  { id: 10, name: "Shallipopi, ODUMODUBLVCK - Cast", type: "Playlist", subtitle: "Curatorboy", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&h=100&fit=crop" },
-]
+interface LibraryItem {
+  id: string
+  name: string
+  type: "Playlist" | "Artist"
+  subtitle?: string
+  image?: string
+  isLiked?: boolean
+  count?: string
+}
 
 const filters = ["Playlists", "Podcasts & Shows", "Albums", "Artists"]
 
 interface LeftSidebarProps {
   activeView: ActiveView
   onNavigate: (view: ActiveView) => void
+  onOpenPlaylist: (id: string) => void
 }
 
-export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
+export function LeftSidebar({ activeView, onNavigate, onOpenPlaylist }: LeftSidebarProps) {
+  const { currentTrack, isPlaying } = usePlayer()
+  const likedItem: LibraryItem = { id: "liked", name: "Liked Songs", type: "Playlist", isLiked: true }
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([likedItem])
+  const [playlistNames, setPlaylistNames] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    ;(async () => {
+      const token = await getAccessToken()
+      if (!token) { setLoading(false); return }
+
+      try {
+        const headers = { Authorization: `Bearer ${token}` }
+        const [plRes, arRes] = await Promise.all([
+          fetch("https://api.spotify.com/v1/me/playlists?limit=50", { headers }),
+          fetch("https://api.spotify.com/v1/me/following?type=artist&limit=20", { headers }),
+        ])
+
+        // 403 = missing scopes — show only Liked Songs until re-auth
+        if (plRes.status === 403) {
+          setLoading(false)
+          return
+        }
+
+        const [plData, arData] = await Promise.all([plRes.json(), arRes.json()])
+        const playlists: LibraryItem[] = (plData.items ?? []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          type: "Playlist" as const,
+          subtitle: p.owner?.display_name,
+          image: p.images?.[0]?.url,
+        }))
+        const artists: LibraryItem[] = (arData.artists?.items ?? []).map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          type: "Artist" as const,
+          image: a.images?.[0]?.url,
+        }))
+
+        const liked: LibraryItem = {
+          id: "liked",
+          name: "Liked Songs",
+          type: "Playlist",
+          isLiked: true,
+        }
+
+        setLibraryItems([liked, ...playlists, ...artists])
+        setPlaylistNames(playlists.map((p) => p.name))
+      } catch (err) {
+        console.error("[library]", err)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
   // Different sidebar layout for Liked Songs page
   if (activeView === "liked") {
     return (
@@ -91,12 +131,12 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
 
         {/* Playlist List */}
         <div className="flex-1 overflow-y-auto px-2 space-y-2 scrollbar-hidden">
-          {playlists.map((playlist, index) => (
+          {playlistNames.map((name, index) => (
             <button
               key={index}
               className="block w-full text-left text-[#b3b3b3] hover:text-white text-sm truncate transition-colors py-1"
             >
-              {playlist}
+              {name}
             </button>
           ))}
         </div>
@@ -140,9 +180,16 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
               <Library className="w-6 h-6" />
               <span className="font-bold">Your Library</span>
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button className="p-2 hover:bg-[#1a1a1a] rounded-full transition-colors text-[#b3b3b3] hover:text-white">
                 <Plus className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => { logout(); location.reload() }}
+                title="Log out"
+                className="p-2 hover:bg-[#1a1a1a] rounded-full transition-colors text-[#b3b3b3] hover:text-white"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -175,43 +222,57 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
 
         {/* Library Items */}
         <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-hidden">
-          {libraryItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => item.isLiked && onNavigate("liked")}
-              className={`flex items-center gap-3 p-2 rounded-md hover:bg-[#1a1a1a] transition-colors group w-full text-left ${
-                item.isPlaying ? "bg-[#1a1a1a]" : ""
-              }`}
-            >
-              <div className="relative w-12 h-12 flex-shrink-0">
-                {item.isLiked ? (
-                  <div className="w-12 h-12 rounded bg-gradient-to-br from-[#450af5] to-[#8e8ee5] flex items-center justify-center">
-                    <Heart className="w-5 h-5 fill-white text-white" />
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2">
+                <div className="w-12 h-12 rounded bg-[#282828] animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-[#282828] rounded animate-pulse w-3/4" />
+                  <div className="h-2.5 bg-[#282828] rounded animate-pulse w-1/2" />
+                </div>
+              </div>
+            ))
+          ) : (
+            libraryItems.map((item) => {
+              const isActive = isPlaying && currentTrack && item.name === currentTrack.title
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (item.isLiked) onNavigate("liked")
+                    else if (item.type === "Playlist") onOpenPlaylist(item.id)
+                  }}
+                  className={`flex items-center gap-3 p-2 rounded-md hover:bg-[#1a1a1a] transition-colors w-full text-left ${isActive ? "bg-[#1a1a1a]" : ""}`}
+                >
+                  <div className="relative w-12 h-12 flex-shrink-0">
+                    {item.isLiked ? (
+                      <div className="w-12 h-12 rounded bg-gradient-to-br from-[#450af5] to-[#8e8ee5] flex items-center justify-center">
+                        <Heart className="w-5 h-5 fill-white text-white" />
+                      </div>
+                    ) : item.image ? (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className={`object-cover ${item.type === "Artist" ? "rounded-full" : "rounded"}`}
+                      />
+                    ) : (
+                      <div className={`w-12 h-12 ${item.type === "Artist" ? "rounded-full" : "rounded"} bg-[#282828]`} />
+                    )}
                   </div>
-                ) : item.image ? (
-                  <Image 
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className={`object-cover ${item.type === 'Artist' ? 'rounded-full' : 'rounded'}`}
-                  />
-                ) : (
-                  <div className={`w-12 h-12 ${item.type === 'Artist' ? 'rounded-full' : 'rounded'} bg-[#282828]`} />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium truncate ${item.isPlaying ? "text-[#1DB954]" : "text-white"}`}>
-                  {item.name}
-                </p>
-                <p className="text-xs text-[#b3b3b3] truncate">
-                  {item.type}{item.count ? ` · ${item.count}` : item.subtitle ? ` · ${item.subtitle}` : ""}
-                </p>
-              </div>
-              {item.isPlaying && (
-                <Volume2 className="w-4 h-4 text-[#1DB954] flex-shrink-0" />
-              )}
-            </button>
-          ))}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${isActive ? "text-[#1DB954]" : "text-white"}`}>
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-[#b3b3b3] truncate">
+                      {item.type}{item.count ? ` · ${item.count}` : item.subtitle ? ` · ${item.subtitle}` : ""}
+                    </p>
+                  </div>
+                  {isActive && <Volume2 className="w-4 h-4 text-[#1DB954] flex-shrink-0" />}
+                </button>
+              )
+            })
+          )}
         </div>
       </div>
     </div>

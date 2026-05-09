@@ -1,7 +1,24 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, Play, Heart } from "lucide-react"
+import { TRACKS } from "@/lib/music-data"
+import { usePlayer } from "@/lib/player-context"
+import { getAccessToken } from "@/lib/spotify-auth"
+import { ChevronLeft, ChevronRight, Heart, Play } from "lucide-react"
 import Image from "next/image"
+import { useEffect, useState } from "react"
+import type { ActiveView } from "./spotify-app"
+
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return "Good morning"
+  if (h < 18) return "Good afternoon"
+  return "Good evening"
+}
+
+interface SpotifyUser {
+  name: string
+  image: string
+}
 
 const quickAccessItems = [
   { id: 1, name: "Liked Songs", isLiked: true, image: null },
@@ -28,7 +45,30 @@ const topMixes = [
   { id: 5, name: "Hip Hop Mix", description: "Kendrick lamar, Eminem, Popsmoke...", image: "https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=200&h=200&fit=crop" },
 ]
 
-export function MainContent() {
+export function MainContent({ onNavigate }: { onNavigate: (v: ActiveView) => void }) {
+  const { play } = usePlayer()
+  const [user, setUser] = useState<SpotifyUser | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      const token = await getAccessToken()
+      if (!token) return
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        setUser({
+          name: data.display_name ?? "User",
+          image: data.images?.[0]?.url ?? "",
+        })
+      } catch {}
+    })()
+  }, [])
+
+  const firstName = user?.name?.split(" ")[0] ?? "you"
+
   return (
     <div className="flex-1 rounded-lg overflow-hidden relative bg-[#121212]">
       {/* Gradient background - warm brownish like Spotify */}
@@ -56,26 +96,36 @@ export function MainContent() {
               <ChevronRight className="w-5 h-5 text-white" />
             </button>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-1.5 bg-white text-black rounded-full text-sm font-bold hover:scale-105 transition-transform">
-              Explore Premium
-            </button>
-            <div className="w-8 h-8 rounded-full bg-[#535353] cursor-pointer hover:bg-[#727272] transition-colors"></div>
+          <div className="flex items-center gap-2">
+            {user && (
+              <button className="flex items-center gap-2 bg-black/70 rounded-full py-1 px-1 pr-3 hover:bg-black/90 transition-colors">
+                {user.image ? (
+                  <div className="w-7 h-7 rounded-full overflow-hidden relative flex-shrink-0">
+                    <Image src={user.image} alt={user.name} fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-black">{user.name[0]}</span>
+                  </div>
+                )}
+                <span className="text-sm font-bold text-white">{user.name}</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Content */}
         <div className="px-6 pb-8">
           {/* Greeting */}
-          <h1 className="text-3xl font-bold text-white mb-5">Good evening</h1>
+          <h1 className="text-3xl font-bold text-white mb-5">{getGreeting()}</h1>
 
           {/* Quick Access Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-8">
-            {quickAccessItems.map((item) => (
-              <a
+            {quickAccessItems.map((item, i) => (
+              <div
                 key={item.id}
-                href="#"
-                className="flex items-center gap-4 bg-white/10 hover:bg-white/20 rounded overflow-hidden transition-colors group relative"
+                onClick={() => item.isLiked ? onNavigate("liked") : play(TRACKS[i % TRACKS.length])}
+                className="flex items-center gap-4 bg-white/10 hover:bg-white/20 rounded overflow-hidden transition-colors group relative cursor-pointer"
               >
                 <div className="w-12 h-12 flex-shrink-0 relative">
                   {item.isLiked ? (
@@ -94,31 +144,27 @@ export function MainContent() {
                   )}
                 </div>
                 <span className="font-bold text-sm text-white flex-1">{item.name}</span>
-                {item.hasVisualizer && (
-                  <div className="mr-4 flex items-end gap-0.5 h-4">
-                    <span className="w-1 bg-[#1DB954] rounded-sm animate-pulse" style={{height: '60%'}}></span>
-                    <span className="w-1 bg-[#1DB954] rounded-sm animate-pulse" style={{height: '100%', animationDelay: '0.2s'}}></span>
-                    <span className="w-1 bg-[#1DB954] rounded-sm animate-pulse" style={{height: '40%', animationDelay: '0.4s'}}></span>
-                  </div>
-                )}
-                <button className="absolute right-2 w-10 h-10 rounded-full bg-[#1DB954] text-black flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-xl hover:scale-105 hover:bg-[#1ed760]">
+                <button
+                  onClick={(e) => { e.stopPropagation(); item.isLiked ? onNavigate("liked") : play(TRACKS[i % TRACKS.length]) }}
+                  className="absolute right-2 w-10 h-10 rounded-full bg-[#1DB954] text-black flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-xl hover:scale-105 hover:bg-[#1ed760]"
+                >
                   <Play className="w-4 h-4 fill-current ml-0.5" />
                 </button>
-              </a>
+              </div>
             ))}
           </div>
 
           {/* Made for You Section */}
           <section className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white hover:underline cursor-pointer">Made for Enoch</h2>
+              <h2 className="text-2xl font-bold text-white hover:underline cursor-pointer">Made for {firstName}</h2>
               <a href="#" className="text-sm font-bold text-[#b3b3b3] hover:text-white hover:underline">
                 Show all
               </a>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {madeForYou.map((item) => (
-                <PlaylistCard key={item.id} {...item} />
+              {madeForYou.map((item, i) => (
+                <PlaylistCard key={item.id} {...item} onPlay={() => play(TRACKS[i % TRACKS.length])} />
               ))}
             </div>
           </section>
@@ -132,8 +178,8 @@ export function MainContent() {
               </a>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {topMixes.map((item) => (
-                <PlaylistCard key={item.id} {...item} />
+              {topMixes.map((item, i) => (
+                <PlaylistCard key={item.id} {...item} onPlay={() => play(TRACKS[i % TRACKS.length])} />
               ))}
             </div>
           </section>
@@ -143,9 +189,9 @@ export function MainContent() {
   )
 }
 
-function PlaylistCard({ name, description, image, label }: { name: string; description: string; image: string; label?: string }) {
+function PlaylistCard({ name, description, image, label, onPlay }: { name: string; description: string; image: string; label?: string; onPlay: () => void }) {
   return (
-    <a href="#" className="p-4 bg-[#181818] rounded-md hover:bg-[#282828] transition-colors group cursor-pointer">
+    <div onClick={onPlay} className="p-4 bg-[#181818] rounded-md hover:bg-[#282828] transition-colors group cursor-pointer">
       <div className="relative mb-4">
         <div className="aspect-square rounded-md overflow-hidden shadow-lg relative bg-[#282828]">
           <Image 
@@ -160,12 +206,15 @@ function PlaylistCard({ name, description, image, label }: { name: string; descr
             </div>
           )}
         </div>
-        <button className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-[#1DB954] text-black flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-xl hover:scale-105 hover:bg-[#1ed760]">
+        <button
+          onClick={(e) => { e.stopPropagation(); onPlay() }}
+          className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-[#1DB954] text-black flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-xl hover:scale-105 hover:bg-[#1ed760]"
+        >
           <Play className="w-5 h-5 fill-current ml-0.5" />
         </button>
       </div>
       <h3 className="font-bold text-white mb-1 truncate">{name}</h3>
       <p className="text-sm text-[#b3b3b3] line-clamp-2">{description}</p>
-    </a>
+    </div>
   )
 }

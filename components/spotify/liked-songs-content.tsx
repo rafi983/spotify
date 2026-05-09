@@ -1,46 +1,79 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, ChevronDown, Play, Shuffle, Download, MoreHorizontal, Search, Heart, Clock } from "lucide-react"
+import type { Track } from "@/lib/music-data"
+import { usePlayer } from "@/lib/player-context"
+import { getAccessToken } from "@/lib/spotify-auth"
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, Download, Heart, MoreHorizontal, Play, Search, Shuffle } from "lucide-react"
 import Image from "next/image"
+import { useEffect, useState } from "react"
 
-const songs = [
-  { id: 1, title: "The Night we met", artist: "Lord Huron", album: "Play It Safe", duration: "2:12", isPlaying: true, isLiked: true },
-  { id: 2, title: "Akpoaza", artist: "Dynamites", album: "In the Shape of a Dream", duration: "2:12", isLiked: false },
-  { id: 3, title: "Be Alright", artist: "Dean lewis", album: "Free Spirit", duration: "3:02", isLiked: true },
-  { id: 4, title: "Falling", artist: "Trevor Daniel", album: "Vacation", duration: "4:25", isLiked: true },
-  { id: 5, title: "If the world was ending", artist: "JP SAXE, Julia Michaels", album: "Same Old", duration: "2:56", isLiked: true },
-  { id: 6, title: "Let her go", artist: "Passenger", album: "A Moment Apart", duration: "3:54", isLiked: false },
-  { id: 7, title: "Another Love", artist: "Tom Odell", album: "1993", duration: "3:13", isLiked: false },
-  { id: 8, title: "Sleepless Nights (fea...", artist: "ayokay, Nightly", album: "In the Shape of a Dream", duration: "2:12", isLiked: true },
-  { id: 9, title: "Atlantis", artist: "Seafret", album: "Girl, I Know", duration: "3:14", isLiked: true },
-  { id: 10, title: "Slow Grenade", artist: "Ellie Goulding, Lauv", album: "Brightest Blue", duration: "3:37", isLiked: true },
-  { id: 11, title: "Play It Safe", artist: "Julia Wolf", album: "Play It Safe", duration: "2:12", isLiked: true },
-  { id: 12, title: "Ocean Front Apt.", artist: "ayokay", album: "In the Shape of a Dream", duration: "2:12", isLiked: false },
-  { id: 13, title: "Free Spirit", artist: "Khalid", album: "Free Spirit", duration: "3:02", isLiked: true },
-  { id: 14, title: "Remind You", artist: "FRENSHIP", album: "Vacation", duration: "4:25", isLiked: true },
-  { id: 15, title: "Same Old", artist: "SHY Martin", album: "Same Old", duration: "2:56", isLiked: true },
-  { id: 16, title: "A Moment Apart", artist: "ODESZA", album: "A Moment Apart", duration: "3:54", isLiked: false },
-  { id: 17, title: "Run Away", artist: "Manilla Killa, outsideOUT...", album: "1993", duration: "3:13", isLiked: false },
-  { id: 18, title: "Sleepless Nights (fea...", artist: "ayokay, Nightly", album: "In the Shape of a Dream", duration: "2:12", isLiked: true },
-  { id: 19, title: "Wrong Kind Of People", artist: "Baker Grace", album: "Girl, I Know", duration: "3:14", isLiked: true },
-  { id: 20, title: "Slow Grenade", artist: "Ellie Goulding, Lauv", album: "Brightest Blue", duration: "3:37", isLiked: true },
-  { id: 21, title: "Play It Safe", artist: "Julia Wolf", album: "Play It Safe", duration: "2:12", isLiked: true },
-  { id: 22, title: "Ocean Front Apt.", artist: "ayokay", album: "In the Shape of a Dream", duration: "2:12", isLiked: false },
-  { id: 23, title: "Free Spirit", artist: "Khalid", album: "Free Spirit", duration: "3:02", isLiked: true },
-  { id: 24, title: "Remind You", artist: "FRENSHIP", album: "Vacation", duration: "4:25", isLiked: true },
-  { id: 25, title: "Same Old", artist: "SHY Martin", album: "Same Old", duration: "2:56", isLiked: true },
-  { id: 26, title: "A Moment Apart", artist: "ODESZA", album: "A Moment Apart", duration: "3:54", isLiked: false },
-  { id: 27, title: "Run Away", artist: "Manilla Killa, outsideOUT...", album: "1993", duration: "3:13", isLiked: false },
-  { id: 28, title: "Sleepless Nights (fea...", artist: "ayokay, Nightly", album: "In the Shape of a Dream", duration: "2:12", isLiked: true },
-  { id: 29, title: "Wrong Kind Of People", artist: "Baker Grace", album: "Girl, I Know", duration: "3:14", isLiked: true },
-  { id: 30, title: "Slow Grenade", artist: "Ellie Goulding, Lauv", album: "Brightest Blue", duration: "3:37", isLiked: true },
-  { id: 31, title: "Play It Safe", artist: "Julia Wolf", album: "Play It Safe", duration: "2:12", isLiked: true },
-  { id: 32, title: "Ocean Front Apt.", artist: "ayokay", album: "In the Shape of a Dream", duration: "2:12", isLiked: false },
-  { id: 33, title: "Free Spirit", artist: "Khalid", album: "Free Spirit", duration: "3:02", isLiked: true },
-  { id: 34, title: "Remind You", artist: "FRENSHIP", album: "Vacation", duration: "4:25", isLiked: true },
-]
+interface SavedSong {
+  id: string
+  title: string
+  artist: string
+  album: string
+  coverUrl: string
+  duration: string
+  addedAt: string
+  uri: string
+}
+
+function fmtMs(ms: number) {
+  const m = Math.floor(ms / 60000)
+  const s = Math.floor((ms % 60000) / 1000)
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
 
 export function LikedSongsContent() {
+  const { play, currentTrack, isPlaying, togglePlay } = usePlayer()
+  const [songs, setSongs] = useState<SavedSong[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    ;(async () => {
+      const token = await getAccessToken()
+      if (!token) { setLoading(false); return }
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me/tracks?limit=50", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) { setLoading(false); return }
+        const data = await res.json()
+        setTotal(data.total ?? 0)
+        setSongs(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (data.items ?? []).map((item: any) => ({
+            id: item.track.id,
+            title: item.track.name,
+            artist: item.track.artists.map((a: any) => a.name).join(", "),
+            album: item.track.album.name,
+            coverUrl: item.track.album.images?.[0]?.url ?? "",
+            duration: fmtMs(item.track.duration_ms),
+            addedAt: new Date(item.added_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+            uri: item.track.uri,
+          }))
+        )
+      } catch (err) {
+        console.error("[liked songs]", err)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
+
+  const handleSongClick = (song: SavedSong) => {
+    const track: Track = {
+      id: 0,
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      coverUrl: song.coverUrl,
+      uri: song.uri,
+    }
+    play(track)
+  }
+
   return (
     <div className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col">
       {/* Header with gradient */}
@@ -75,7 +108,7 @@ export function LikedSongsContent() {
             <div className="flex items-center gap-1 mt-4">
               <span className="text-white font-semibold">Enoch</span>
               <span className="text-white/70 mx-1">•</span>
-              <span className="text-white/70">55 Songs</span>
+              <span className="text-white/70">{total} Songs</span>
             </div>
           </div>
         </div>
@@ -83,8 +116,15 @@ export function LikedSongsContent() {
         {/* Action Bar */}
         <div className="flex items-center justify-between p-6 pt-4">
           <div className="flex items-center gap-6">
-            <button className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center hover:scale-105 hover:bg-[#1ed760] transition-all">
-              <Play className="w-7 h-7 text-black fill-black ml-1" />
+            <button
+              onClick={() => currentTrack ? togglePlay() : songs[0] && handleSongClick(songs[0])}
+              className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center hover:scale-105 hover:bg-[#1ed760] transition-all"
+            >
+              {isPlaying && currentTrack ? (
+                <svg className="w-7 h-7 text-black fill-black" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+              ) : (
+                <Play className="w-7 h-7 text-black fill-black ml-1" />
+              )}
             </button>
             <button className="text-[#b3b3b3] hover:text-white transition-colors">
               <Shuffle className="w-8 h-8" />
@@ -123,42 +163,66 @@ export function LikedSongsContent() {
 
         {/* Song Rows */}
         <div className="pb-8">
-          {songs.map((song, index) => (
-            <div
-              key={`${song.id}-${index}`}
-              className="grid grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] gap-4 px-4 py-2 text-sm hover:bg-white/10 rounded group items-center"
-            >
-              <span className="text-[#b3b3b3] group-hover:hidden">{index + 1}</span>
-              <Play className="w-4 h-4 text-white hidden group-hover:block fill-white" />
-              
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative w-10 h-10 flex-shrink-0">
-                  <Image
-                    src={`https://images.unsplash.com/photo-${1500000000000 + song.id * 1000}?w=80&h=80&fit=crop`}
-                    alt={song.title}
-                    fill
-                    className="object-cover rounded"
-                    unoptimized
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className={`truncate font-medium ${song.isPlaying ? "text-[#1DB954]" : "text-white"}`}>
-                    {song.title}
-                  </p>
-                  <p className="text-[#b3b3b3] truncate text-xs">{song.artist}</p>
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3">
+                <div className="w-4 h-4 bg-[#282828] rounded animate-pulse" />
+                <div className="w-10 h-10 bg-[#282828] rounded animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-[#282828] rounded animate-pulse w-1/3" />
+                  <div className="h-2.5 bg-[#282828] rounded animate-pulse w-1/4" />
                 </div>
               </div>
-              
-              <span className="text-[#b3b3b3] truncate hover:underline cursor-pointer">{song.album}</span>
-              
-              <span className="text-[#b3b3b3]"></span>
-              
-              <div className="flex items-center justify-end gap-3">
-                <Heart className={`w-4 h-4 ${song.isLiked ? "fill-[#1DB954] text-[#1DB954]" : "text-transparent group-hover:text-[#b3b3b3]"}`} />
-                <span className="text-[#b3b3b3]">{song.duration}</span>
-              </div>
+            ))
+          ) : songs.length === 0 ? (
+            <div className="text-center py-16 text-[#b3b3b3]">
+              <Heart className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p>No liked songs yet. Like songs on Spotify to see them here.</p>
             </div>
-          ))}
+          ) : (
+            songs.map((song, index) => {
+              const isActive = currentTrack?.uri === song.uri || (currentTrack?.title === song.title && currentTrack?.artist === song.artist)
+              return (
+                <div
+                  key={song.id}
+                  onClick={() => handleSongClick(song)}
+                  className={`grid grid-cols-[16px_minmax(200px,4fr)_minmax(150px,2fr)_minmax(100px,1fr)_minmax(50px,1fr)] gap-4 px-4 py-2 text-sm hover:bg-white/10 rounded group items-center cursor-pointer ${
+                    isActive ? "bg-white/5" : ""
+                  }`}
+                >
+                  {isActive && isPlaying ? (
+                    <span className="flex items-end gap-px h-4 group-hover:hidden">
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"60%"}} />
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"100%",animationDelay:"0.15s"}} />
+                      <span className="w-0.5 bg-[#1DB954] rounded-sm animate-pulse" style={{height:"40%",animationDelay:"0.3s"}} />
+                    </span>
+                  ) : (
+                    <span className={`group-hover:hidden ${isActive ? "text-[#1DB954]" : "text-[#b3b3b3]"}`}>{index + 1}</span>
+                  )}
+                  <Play className="w-4 h-4 text-white hidden group-hover:block fill-white" />
+
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative w-10 h-10 flex-shrink-0 bg-[#282828] rounded">
+                      {song.coverUrl && (
+                        <Image src={song.coverUrl} alt={song.title} fill className="object-cover rounded" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`truncate font-medium ${isActive ? "text-[#1DB954]" : "text-white"}`}>{song.title}</p>
+                      <p className="text-[#b3b3b3] truncate text-xs">{song.artist}</p>
+                    </div>
+                  </div>
+
+                  <span className="text-[#b3b3b3] truncate">{song.album}</span>
+                  <span className="text-[#b3b3b3] text-xs">{song.addedAt}</span>
+                  <div className="flex items-center justify-end gap-3">
+                    <Heart className="w-4 h-4 fill-[#1DB954] text-[#1DB954]" />
+                    <span className="text-[#b3b3b3]">{song.duration}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 
